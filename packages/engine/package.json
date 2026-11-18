@@ -1,0 +1,1 @@
+{ "name": "@deals/engine", "version": "1.0.0", "type": "module", "main": "src/index.ts", "private": true }
