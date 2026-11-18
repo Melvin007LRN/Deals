@@ -8,6 +8,7 @@ import {
   type Command,
   type GameEvent,
   type GameState,
+  type RuleConfig,
 } from "@deals/engine";
 import { PROFILES, decide, fallback, type ProfileName } from "./agents.ts";
 
@@ -61,12 +62,12 @@ export interface GameResult {
   invariantViolations: string[];
 }
 
-export function runGame(seed: number, profiles: ProfileName[], opts: { checkInvariants?: boolean } = {}): GameResult {
+export function runGame(seed: number, profiles: ProfileName[], opts: { checkInvariants?: boolean; config?: Partial<RuleConfig> } = {}): GameResult {
   const ids = profiles.map((_, i) => `P${i + 1}`);
   const engineRng = seededRng(seed);
   const agentRng = seededRng(seed ^ 0xa9e47);
   let now = 0;
-  const created = createGame(ids.map((id) => ({ id, name: id })), { rng: engineRng, now });
+  const created = createGame(ids.map((id) => ({ id, name: id })), { rng: engineRng, now }, opts.config ?? {});
   let s: GameState = created.state;
   const profileOf: Record<string, ProfileName> = Object.fromEntries(ids.map((id, i) => [id, profiles[i]!]));
   const events: GameEvent[] = [...created.events];

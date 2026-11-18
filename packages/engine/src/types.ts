@@ -146,6 +146,8 @@ export interface ScoreLine {
 
 export interface GameState {
   rulesVersion: string;
+  /** variante de règles de cette partie (par défaut = règles officielles provisoires) */
+  config: RuleConfig;
   version: number; // incrémentée à chaque commande acceptée
   eventSeq: number;
   round: number; // 1..12
@@ -231,3 +233,15 @@ export interface GameEvent {
 export type ApplyResult =
   | { ok: true; state: GameState; events: GameEvent[] }
   | { ok: false; error: string; code: string };
+
+/** Leviers d'équilibrage testables par simulation. Les valeurs par défaut = règles 1.0.0-provisional. */
+export interface RuleConfig {
+  movementDie: number[];
+  startReward: number;
+  /** au passage de Départ, piocher 1 carte Chance directement en main (ignoré si main pleine) */
+  drawOnStart: boolean;
+  /** crédits versés au début de chaque tour */
+  turnIncome: number;
+  /** crédits de départ supplémentaires par siège (index = siège) */
+  seatBonus: number[];
+}

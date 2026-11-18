@@ -32,9 +32,18 @@ import type {
   PlayerState,
   PropertyState,
   ResourceKind,
+  RuleConfig,
   ScoreLine,
   TurnFlags,
 } from "./types.ts";
+
+export const DEFAULT_CONFIG: RuleConfig = {
+  movementDie: [...MOVEMENT_DIE],
+  startReward: RULES.startReward,
+  drawOnStart: false,
+  turnIncome: 0,
+  seatBonus: [0, 0, 0, 0],
+};
 
 export class RuleError extends Error {
   constructor(public code: string, message: string) {
@@ -408,7 +417,11 @@ export interface NewPlayer {
   name: string;
 }
 
-export function createGame(players: NewPlayer[], ctx: Ctx): { state: GameState; events: GameEvent[] } {
+export function createGame(players: NewPlayer[], ctx: Ctx, configOverride: Partial<RuleConfig> = {}): { state: GameState; events: GameEvent[] } {
+  const config: RuleConfig = { ...DEFAULT_CONFIG, ...configOverride };
+  if (!config.movementDie.length || config.movementDie.some((m) => !Number.isInteger(m) || m < 1 || m > 6)) {
+    throw new RuleError("INVALID_CONFIG", "Dé de mouvement invalide");
+  }
   if (players.length < RULES.playersMin || players.length > RULES.playersMax) {
     throw new RuleError("PLAYER_COUNT", `Il faut entre ${RULES.playersMin} et ${RULES.playersMax} joueurs`);
   }
@@ -431,7 +444,7 @@ export function createGame(players: NewPlayer[], ctx: Ctx): { state: GameState; 
       name: np.name,
       seat,
       position: 0,
-      credits: RULES.startingCredits,
+      credits: RULES.startingCredits + (config.seatBonus[seat] ?? 0),
       materials: RULES.startingMaterials,
       energy: RULES.startingEnergy,
       debt: 0,
@@ -446,6 +459,7 @@ export function createGame(players: NewPlayer[], ctx: Ctx): { state: GameState; 
   for (const i of PROPERTY_INDICES) properties[i] = { index: i, ownerId: null, level: 0, mortgaged: false, buildingCredits: 0, levelPaid: [], lastRealtyAttackRound: 0 };
   const s: GameState = {
     rulesVersion: RULES_VERSION,
+    config,
     version: 0,
     eventSeq: 0,
     round: 1,
@@ -485,11 +499,13 @@ function beginTurn(g: G): void {
   const s = g.s;
   const p = player(s, activePlayerId(s));
   p.turnsStarted += 1;
+  const income = s.config.turnIncome;
   s.turn = freshTurn();
   s.phase = "PRE_ROLL";
   s.lastRoll = null;
   expire(g, (x) => x.kind === "turnStart" && x.playerId === p.id && x.turn <= p.turnsStarted);
   emit(g, "TURN_STARTED", { round: s.round, turn: p.turnsStarted, recovery: inRecovery(p) }, p.id);
+  if (income > 0) gainCredits(g, p, income, "turn_income");
   // Bonus Industriel : +1 Matériau une fois par manche (au début du tour du contrôleur)
   if (districtController(s, "industrial") === p.id) {
     gainResource(g, p, "materials", RULES.bonusIndustrialMaterials * reformFactor(s, "industrial"), "bonus_industrial");
@@ -573,7 +589,8 @@ function floor5(n: number): number {
 /* ------------------------------------------------------------------ */
 
 function rollDice(g: G, p: PlayerState): void {
-  const movement = MOVEMENT_DIE[g.ctx.rng.int(MOVEMENT_DIE.length)]!;
+  const die = g.s.config.movementDie;
+  const movement = die[g.ctx.rng.int(die.length)]!;
   const face = RESOURCE_DIE[g.ctx.rng.int(RESOURCE_DIE.length)]!;
   g.s.lastRoll = { movement, resource: face };
   emit(g, "DICE_ROLLED", { movement, resource: face }, p.id);
@@ -611,7 +628,7 @@ function moveAndLand(g: G, p: PlayerState): void {
   p.position = (from + steps) % RULES.boardSize;
   emit(g, "PLAYER_MOVED", { from, to: p.position, path, passedStart }, p.id);
   if (passedStart) {
-    let reward = RULES.startReward;
+    let reward = s.config.startReward;
     if (hasBonus(s, p.id, "touristic")) reward += RULES.bonusTouristicStart * reformFactor(s, "touristic");
     gainCredits(g, p, reward, "start");
     emit(g, "START_PASSED", { reward }, p.id);
@@ -620,6 +637,7 @@ function moveAndLand(g: G, p: PlayerState): void {
       removeEffect(s, gi.id);
       gainCredits(g, p, 20, "guaranteed_income");
     }
+    if (s.config.drawOnStart) drawToHand(g, p);
   }
   resolveLanding(g, p);
 }
@@ -659,6 +677,22 @@ function resolveLanding(g: G, p: PlayerState): void {
     default:
       s.phase = "MANAGE";
   }
+}
+
+/** Pioche directe d'une carte en main (variante drawOnStart). Main pleine : rien. */
+function drawToHand(g: G, p: PlayerState): void {
+  const s = g.s;
+  if (p.hand.length >= RULES.maxHand) return;
+  if (s.deck.length === 0 && s.discard.length > 0) {
+    s.deck.push(...shuffle(s.discard.splice(0), g.ctx.rng));
+    emit(g, "DECK_RESHUFFLED", { size: s.deck.length });
+  }
+  const inst = s.deck.shift();
+  if (inst === undefined) return;
+  p.hand.push(inst);
+  p.stats.cardsDrawn += 1;
+  emit(g, "START_CARD_DRAWN", { handSize: p.hand.length }, p.id);
+  emit(g, "CARD_KEPT_PRIVATE", { instanceId: inst, cardId: s.cardInstances[inst] }, p.id, p.id);
 }
 
 function drawChance(g: G, p: PlayerState): void {
