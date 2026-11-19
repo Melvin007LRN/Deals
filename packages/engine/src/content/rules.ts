@@ -5,7 +5,7 @@
  * "provisional" = recommandation de l'audit acceptée provisoirement le 18/11/2026,
  * à confirmer ou ajuster avec les rapports de simulation (voir docs/DECISIONS_A_VALIDER.md).
  */
-export const RULES_VERSION = "1.2.0-provisional";
+export const RULES_VERSION = "1.3.0-provisional";
 
 export const RULES = {
   // confirmed

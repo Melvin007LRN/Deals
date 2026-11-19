@@ -13,6 +13,7 @@ import {
   canBuy,
   candidateCommands,
   card,
+  cardCost,
   cardPlays,
   computeRent,
   computeScores,
@@ -181,7 +182,8 @@ function cardEV(s: GameState, me: PlayerId, cmd: Extract<Command, { type: "PLAY_
       const breaks = ownedCount(s, pr.ownerId!, districtOf(pr.index)) >= 2 ? 25 : 0;
       later = -immediate + (priceOf(pr.index) * 0.7 + pr.buildingCredits * 0.5) * 0.4 + breaks * 0.8;
       later *= lead;
-      immediate = -10 * (def.cost.materials + def.cost.energy) * resourceWeight(s);
+      const cc = cardCost(def, s.config.cardRevision ?? 1);
+      immediate = -10 * (cc.materials + cc.energy) * resourceWeight(s);
       break;
     }
     case "assurance": {

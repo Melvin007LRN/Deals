@@ -4,7 +4,7 @@
  * Aucune dépendance DOM/réseau. Toute commande refusée laisse l'état intact (travail sur une copie).
  */
 import { BOARD, DISTRICTS, PROPERTY_INDICES, districtOf, districtProperties, priceOf, space, type DistrictId } from "./content/board.ts";
-import { CARDS, card, type CardDef } from "./content/cards.ts";
+import { CARDS, card, cardCost, type CardDef } from "./content/cards.ts";
 import { OBJECTIVES, objective } from "./content/objectives.ts";
 import {
   BUILDING_COSTS,
@@ -45,6 +45,7 @@ export const OFFICIAL_CONFIG: RuleConfig = {
   turnIncome: 0,
   seatBonus: [0, 0, 0, 0],
   seatBonusByCount: {},
+  resourceScore: 10,
 };
 
 /**
@@ -60,6 +61,8 @@ export const DEFAULT_CONFIG: RuleConfig = {
   seatBonus: [0, 20, 40, 60],
   // réglage fin validé le 19/11/2026 (docs/simulations/sieges_10000.md)
   seatBonusByCount: { 3: [0, 40, 60], 4: [0, 30, 50, 70] },
+  // validé le 19/11/2026 (docs/simulations/ressources_3000.md)
+  resourceScore: 5,
 };
 
 export class RuleError extends Error {
@@ -119,6 +122,7 @@ function freshTurn(): TurnFlags {
     buyDiscountSource: null,
     taxCancel: false,
     taxReduction: 0,
+    rentReduction: 0,
     marketAvailable: false,
     marketTransactions: 0,
     tradeOffers: 0,
@@ -380,9 +384,11 @@ export function computeRent(s: GameState, index: number): RentBreakdown {
   const insured = s.effects.some((e) => e.kind === "insurance" && e.propertyIndex === index);
   const crisis = !insured && s.effects.some((e) => e.kind === "districtCrisis" && e.district === d);
   const sabotage = s.effects.some((e) => e.kind === "sabotage" && e.propertyIndex === index);
-  const num = base * RENT_MULT_HALVES[pr.level] * (districtBonus ? 11 : 10) * (crisis ? 3 : 4) * (sabotage ? 1 : 2);
+  const crisisFlat = crisis && s.config.cardRevision === 2;
+  const num = base * RENT_MULT_HALVES[pr.level] * (districtBonus ? 11 : 10) * (crisis && !crisisFlat ? 3 : 4) * (sabotage ? 1 : 2);
   const den = 2 * 10 * 4 * 2;
   let total = 5 * Math.ceil(num / (den * 5));
+  if (crisisFlat) total = Math.max(0, total - 5);
   const receivedMinus = owner !== null && s.effects.some((e) => e.kind === "rentReceivedMinus" && e.targetPlayerId === owner) ? 10 : 0;
   total = Math.max(0, total - receivedMinus);
   const rentBonus = s.effects.some((e) => e.kind === "rentBonus" && e.propertyIndex === index) ? 15 : 0;
@@ -407,11 +413,13 @@ function payRent(g: G, payer: PlayerState, index: number): void {
   if (r.receivedMinus) consume((e) => e.kind === "rentReceivedMinus" && e.targetPlayerId === ownerId);
   if (r.rentBonus) consume((e) => e.kind === "rentBonus" && e.propertyIndex === index);
   if (g.s.effects.some((e) => e.kind === "districtCrisis" && e.district === districtOf(index))) {
-    // une assurance protège contre la réduction de loyer de crise : elle est consommée
-    consume((e) => e.kind === "insurance" && e.propertyIndex === index);
+    // révision 1 : l'assurance protège contre la crise et est consommée ; révision 2 : non consommée
+    if (g.s.config.cardRevision !== 2) consume((e) => e.kind === "insurance" && e.propertyIndex === index);
   }
   const owner = player(g.s, ownerId);
-  const paid = charge(g, payer, r.total, ownerId, "rent", "landing");
+  const due = Math.max(0, r.total - (payer.id === activePlayerId(g.s) ? g.s.turn.rentReduction : 0));
+  if (due !== r.total) emit(g, "RENT_REDUCED", { amount: r.total - due, reason: "vote_municipal" }, payer.id);
+  const paid = charge(g, payer, due, ownerId, "rent", "landing");
   payer.stats.rentPaid += paid;
   owner.stats.rentReceived += paid;
   emit(g, "RENT_PAID", { propertyIndex: index, ownerId, amount: paid, breakdown: r }, payer.id);
@@ -879,7 +887,8 @@ export function canPlayCard(s: GameState, cmd: PlayCmd): string | null {
   const cardId = s.cardInstances[cmd.instanceId];
   if (cardId === undefined) return "UNKNOWN_CARD";
   const def = card(cardId);
-  if (p.materials < def.cost.materials || p.energy < def.cost.energy) return "INSUFFICIENT_RESOURCES";
+  const cost = cardCost(def, s.config.cardRevision ?? 1);
+  if (p.materials < cost.materials || p.energy < cost.energy) return "INSUFFICIENT_RESOURCES";
   if (def.attack && inRecovery(p)) return "IN_RECOVERY";
   if (def.attack === "realty" && s.phase !== "PRE_ROLL" && s.phase !== "MANAGE") return "WRONG_PHASE";
   const isOpp = (id?: PlayerId) => id !== undefined && id !== p.id && s.players[id] !== undefined;
@@ -919,7 +928,7 @@ export function canPlayCard(s: GameState, cmd: PlayCmd): string | null {
       break;
   }
   // contraintes spécifiques
-  const afterCost = { materials: p.materials - def.cost.materials, energy: p.energy - def.cost.energy };
+  const afterCost = { materials: p.materials - cost.materials, energy: p.energy - cost.energy };
   switch (def.key) {
     case "revenus_garantis":
       if (s.effects.some((e) => e.kind === "guaranteedIncome" && e.targetPlayerId === p.id)) return "ALREADY_ACTIVE";
@@ -958,9 +967,9 @@ function attackBlocked(g: G, attacker: PlayerState, def: CardDef, targetId: Play
       const ri = findEffect(s, (e) => e.kind === "realtyInsurance" && e.propertyIndex === propertyIndex);
       if (ri) return block("realtyInsurance", ri.id);
     }
-    if (def.key === "sabotage") {
+    if (def.key === "sabotage" || (def.key === "greve" && s.config.cardRevision === 2)) {
       const ins = findEffect(s, (e) => e.kind === "insurance" && e.propertyIndex === propertyIndex);
-      if (ins) return block("insurance", ins.id);
+      if (ins) return block("insurance", s.config.cardRevision === 2 ? undefined : ins.id);
     }
   }
   const co = findEffect(s, (e) => e.kind === "counterOffensive" && e.targetPlayerId === targetId);
@@ -1003,8 +1012,9 @@ function playCard(g: G, cmd: PlayCmd): void {
   if (err) fail(err, `Carte non jouable : ${err}`);
   const p = player(s, cmd.playerId);
   const def = card(s.cardInstances[cmd.instanceId]!);
-  p.materials -= def.cost.materials;
-  p.energy -= def.cost.energy;
+  const cost = cardCost(def, s.config.cardRevision ?? 1);
+  p.materials -= cost.materials;
+  p.energy -= cost.energy;
   p.hand = p.hand.filter((i) => i !== cmd.instanceId);
   s.discard.push(cmd.instanceId);
   s.turn.cardPlayed = true;
@@ -1043,7 +1053,7 @@ function playCard(g: G, cmd: PlayCmd): void {
       s.turn.extraBuilds += 1;
       break;
     case "bon_investissement":
-      gainResource(g, p, "materials", 1, def.key);
+      gainResource(g, p, "materials", s.config.cardRevision === 2 ? 2 : 1, def.key);
       break;
     case "revenus_garantis":
       addEffect(g, { kind: "guaranteedIncome", sourceId: p.id, targetPlayerId: p.id, expiry: { kind: "never" } });
@@ -1053,6 +1063,7 @@ function playCard(g: G, cmd: PlayCmd): void {
       break;
     case "vote_municipal":
       s.turn.taxReduction = 10;
+      if (s.config.cardRevision === 2) s.turn.rentReduction = 10;
       break;
     case "nouvelle_opportunite":
       s.turn.buyDiscount = 20;

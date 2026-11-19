@@ -85,6 +85,8 @@ export interface TurnFlags {
   buyDiscountSource: number | null; // id carte
   taxCancel: boolean;
   taxReduction: number;
+  /** Vote municipal révision 2 : réduction sur le loyer payé ce tour */
+  rentReduction: number;
   marketAvailable: boolean;
   marketTransactions: number;
   tradeOffers: number;
@@ -248,6 +250,8 @@ export interface RuleConfig {
   seatBonusByCount?: Partial<Record<3 | 4, number[]>>;
   /** points de score par Matériau/Énergie restant en fin de partie (défaut 10) */
   resourceScore?: number;
+  /** révision des cartes : 1 = catalogue V2.5 ; 2 = 6 cartes faibles renforcées (proposition à valider) */
+  cardRevision?: 1 | 2;
   /** positions de départ réparties autour du plateau (siège k → case floor(k × 24 / n)) */
   spreadStart?: boolean;
 }

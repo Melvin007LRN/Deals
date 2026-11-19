@@ -97,3 +97,20 @@ export function card(id: number): CardDef {
 }
 
 export const CARD_KEYS = Object.fromEntries(CARDS.map((d) => [d.key, d.id])) as Record<string, number>;
+
+/**
+ * Révision 2 (proposition du 19/11/2026, à valider) : renforce 6 cartes jamais rentables en simulation.
+ * Coûts et textes ; les effets correspondants sont dans engine.ts (s.config.cardRevision === 2).
+ */
+export const CARD_REVISION_2: Record<string, { cost?: { materials: number; energy: number }; text: string }> = {
+  bon_investissement: { text: "Gagne 2 Matériaux (plafond applicable, excédent converti en 5 D)." },
+  vote_municipal: { cost: { materials: 1, energy: 0 }, text: "Réduit de 10 D la taxe de case ou le loyer que tu paies ce tour." },
+  blocage_bancaire: { cost: { materials: 0, energy: 1 }, text: "La cible ne peut pas acheter volontairement pendant son prochain tour, mais peut enchérir." },
+  crise_locale: { text: "Loyers d'un quartier réduits de 5 D (minimum 0) jusqu'au prochain tour du lanceur ; non cumulable." },
+  assurance: { text: "Protège une propriété contre Sabotage, Grève et Crise locale jusqu'au début du prochain tour du propriétaire (non consommée)." },
+  reforme_urbaine: { cost: { materials: 1, energy: 0 }, text: "Double le bonus économique d'un quartier jusqu'au prochain tour du lanceur ; ne double pas les points." },
+};
+
+export function cardCost(def: CardDef, revision: 1 | 2 = 1): { materials: number; energy: number } {
+  return revision === 2 ? CARD_REVISION_2[def.key]?.cost ?? def.cost : def.cost;
+}
