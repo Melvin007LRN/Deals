@@ -244,6 +244,10 @@ export interface RuleConfig {
   turnIncome: number;
   /** crédits de départ supplémentaires par siège (index = siège) */
   seatBonus: number[];
+  /** compensation spécifique au nombre de joueurs (prioritaire sur seatBonus) */
+  seatBonusByCount?: Partial<Record<3 | 4, number[]>>;
+  /** points de score par Matériau/Énergie restant en fin de partie (défaut 10) */
+  resourceScore?: number;
   /** positions de départ réparties autour du plateau (siège k → case floor(k × 24 / n)) */
   spreadStart?: boolean;
 }

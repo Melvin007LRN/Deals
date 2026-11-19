@@ -44,6 +44,7 @@ export const OFFICIAL_CONFIG: RuleConfig = {
   drawOnStart: false,
   turnIncome: 0,
   seatBonus: [0, 0, 0, 0],
+  seatBonusByCount: {},
 };
 
 /**
@@ -57,6 +58,8 @@ export const DEFAULT_CONFIG: RuleConfig = {
   drawOnStart: true,
   turnIncome: 10,
   seatBonus: [0, 20, 40, 60],
+  // réglage fin validé le 19/11/2026 (docs/simulations/sieges_10000.md)
+  seatBonusByCount: { 3: [0, 40, 60], 4: [0, 30, 50, 70] },
 };
 
 export class RuleError extends Error {
@@ -450,6 +453,7 @@ export function createGame(players: NewPlayer[], ctx: Ctx, configOverride: Parti
     cardInstances[instanceIds[i]!] = c.id;
   });
   const deck = shuffle(Object.keys(cardInstances).map(Number), ctx.rng);
+  const seatBonus = config.seatBonusByCount?.[order.length as 3 | 4] ?? config.seatBonus;
   const ps: Record<PlayerId, PlayerState> = {};
   order.forEach((id, seat) => {
     const np = players.find((p) => p.id === id)!;
@@ -458,7 +462,7 @@ export function createGame(players: NewPlayer[], ctx: Ctx, configOverride: Parti
       name: np.name,
       seat,
       position: config.spreadStart ? Math.floor((seat * RULES.boardSize) / order.length) : 0,
-      credits: RULES.startingCredits + (config.seatBonus[seat] ?? 0),
+      credits: RULES.startingCredits + (seatBonus[seat] ?? 0),
       materials: RULES.startingMaterials,
       energy: RULES.startingEnergy,
       debt: 0,
@@ -1284,7 +1288,7 @@ export function computeScores(s: GameState): ScoreLine[] {
     const properties = Math.floor(owned.reduce((acc, x) => acc + priceOf(x.index), 0) * RULES.scorePropertyPercent / 100);
     const mortgages = owned.filter((x) => x.mortgaged).reduce((acc, x) => acc + redeemValue(x.index), 0);
     const buildings = Math.floor(owned.reduce((acc, x) => acc + x.buildingCredits, 0) * RULES.scoreBuildingPercent / 100);
-    const resources = RULES.scorePerResource * (p.materials + p.energy);
+    const resources = (s.config.resourceScore ?? RULES.scorePerResource) * (p.materials + p.energy);
     const districts = RULES.scorePerDistrict * DISTRICTS.filter((d) => controls(s, id, d.id)).length;
     const o = objective(p.objectiveId);
     const objectivePts = objectiveMet(s, p, o.id) ? RULES.objectivePoints[o.difficulty] : 0;

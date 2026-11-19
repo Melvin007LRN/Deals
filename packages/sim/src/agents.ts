@@ -7,6 +7,7 @@ import {
   BOARD,
   PROPERTY_INDICES,
   activePlayerId,
+  applyCommand,
   buildCost,
   canBuild,
   canBuy,
@@ -75,88 +76,163 @@ function propertyValue(s: GameState, me: PlayerId, index: number): number {
   return v;
 }
 
-function staticCardValue(s: GameState, me: PlayerId, cmd: Extract<Command, { type: "PLAY_CARD" }>, pf: Profile): number {
+/** Écart de patrimoine relatif : mon gain moins le gain moyen des adversaires (le leader compte double). */
+function relativeWealth(s: GameState, me: PlayerId): number {
+  const lines = computeScores(s);
+  const mine = lines.find((l) => l.playerId === me)!.wealth;
+  const opp = lines.filter((l) => l.playerId !== me);
+  const leader = Math.max(...opp.map((l) => l.wealth));
+  const avg = opp.reduce((a, l) => a + l.wealth, 0) / opp.length;
+  return mine - (avg + leader) / 2;
+}
+
+/** Probabilité grossière qu'au moins un adversaire s'arrête sur une case donnée d'ici une manche. */
+function landChance(s: GameState, index: number, excludeId: PlayerId | null): number {
+  let miss = 1;
+  for (const id of s.turnOrder) {
+    if (id === excludeId) continue;
+    const pos = s.players[id]!.position;
+    const d = (index - pos + 24) % 24;
+    const pHit = d >= 1 && d <= 4 ? 0.3 : d <= 8 ? 0.15 : 0.05;
+    miss *= 1 - pHit;
+  }
+  return 1 - miss;
+}
+
+/**
+ * Valeur espérée d'un coup de carte, en points de score relatifs.
+ * 1) effet immédiat mesuré exactement en simulant le coup sur une copie (coût en ressources inclus, au barème du score) ;
+ * 2) + estimation de l'effet différé (protections, réductions, bonus futurs).
+ */
+function cardEV(s: GameState, me: PlayerId, cmd: Extract<Command, { type: "PLAY_CARD" }>, pf: Profile): number {
   const def = card(s.cardInstances[cmd.instanceId]!);
+  const r = applyCommand(s, cmd, { rng: { int: () => 0 }, now: 0 });
+  if (!r.ok) return -Infinity;
+  const after = r.state;
+  let immediate = relativeWealth(after, me) - relativeWealth(s, me);
   const p = s.players[me]!;
-  const leader = leaderOpponent(s, me);
-  const cost = 10 * (def.cost.materials + def.cost.energy) * 0.55;
+  const n = s.turnOrder.length;
+  const roundsLeft = RULES.rounds - s.round;
+  const opps = s.turnOrder.filter((x) => x !== me);
+  const oppCards = opps.reduce((a, id) => a + s.players[id]!.hand.length, 0);
+  const attackThreat = Math.min(0.9, oppCards * 0.18); // chance d'être visé par une attaque d'ici mon prochain tour
+  const myProps = PROPERTY_INDICES.filter((i) => s.properties[i]!.ownerId === me);
   const target = cmd.targetPlayerId ?? (cmd.propertyIndex !== undefined ? s.properties[cmd.propertyIndex]!.ownerId : null);
-  const onLeader = target === leader ? 1.3 : 0.8;
-  const canBuildAny = PROPERTY_INDICES.some((i) => canBuild(s, me, i) === null);
-  let v = -Infinity;
+  const leader = leaderOpponent(s, me);
+  const lead = target === leader ? 1.25 : 1;
+  let later = 0;
   switch (def.key) {
-    case "coup_de_pouce": v = 20 * pf.invest; break;
-    case "magnat": v = 50 * pf.invest; break;
-    case "bon_investissement": v = 10 * pf.invest; break;
-    case "placement_malin": v = s.phase === "MANAGE" && canBuildAny ? 10 * pf.invest : -Infinity; break;
+    case "placement_malin":
+      later = s.phase === "MANAGE" && PROPERTY_INDICES.some((i) => canBuild(s, me, i) === null) ? 10 : -99;
+      break;
     case "chantier_express":
     case "permis_exceptionnel": {
-      const buildable = PROPERTY_INDICES.filter((i) => s.properties[i]!.ownerId === me && canBuild(s, me, i) !== "NO_MAJORITY" && s.properties[i]!.level < 3).length;
-      v = s.phase === "MANAGE" && buildable >= 2 && p.credits > 90 ? 35 * pf.invest : -Infinity;
+      const buildable = myProps.filter((i) => controlsLevel(s, me, i)).length;
+      later = s.phase === "MANAGE" && buildable >= 1 && p.credits > 80 && p.materials >= 3 ? 12 + 2 * roundsLeft : -99;
       break;
     }
-    case "rendement_bonus": v = 8 * pf.invest; break;
-    case "revenus_garantis": v = p.position >= 17 ? 20 * pf.invest : 3; break;
-    case "reduction_fiscale": v = s.phase === "TAX_DUE" ? 15 : -Infinity; break;
-    case "vote_municipal": v = s.phase === "TAX_DUE" ? 10 : -Infinity; break;
-    case "nouvelle_opportunite": v = s.phase === "BUY_DECISION" && canBuy(s, me) !== "IN_RECOVERY" ? 20 * pf.invest : -Infinity; break;
-    case "contrat_privilegie": v = s.phase === "BUY_DECISION" && canBuy(s, me) !== "IN_RECOVERY" ? 15 * pf.invest : -Infinity; break;
-    case "sabotage": v = (computeRent(s, cmd.propertyIndex!).total / 2) * pf.attack * onLeader; break;
-    case "pression_fiscale": v = 12 * pf.attack * onLeader; break;
-    case "greve": v = (s.properties[cmd.propertyIndex!]!.level < 3 ? 5 : 0) * pf.attack * onLeader; break;
-    case "inspection":
-    case "fraude_commerciale": v = 8 * pf.attack * onLeader; break;
-    case "blocage_bancaire": v = 8 * pf.attack * onLeader; break;
-    case "detournement": v = Math.min(10, s.players[target!]!.credits) * 1.6 * pf.attack * onLeader; break;
-    case "concurrence_agressive": v = 4 * pf.attack * onLeader; break;
-    case "crise_locale": v = 3 * pf.attack; break;
+    case "rendement_bonus":
+      later = 15 * Math.min(1, landChance(s, cmd.propertyIndex!, me) * 1.6);
+      break;
+    case "revenus_garantis": {
+      const dist = 24 - p.position;
+      later = dist <= 2.5 * Math.max(1, roundsLeft) ? 18 : 2;
+      break;
+    }
+    case "reduction_fiscale": later = s.phase === "TAX_DUE" ? 15 : -99; break;
+    case "vote_municipal": later = s.phase === "TAX_DUE" ? 10 : -99; break;
+    case "nouvelle_opportunite": later = s.phase === "BUY_DECISION" ? 20 : -99; break;
+    case "contrat_privilegie": later = s.phase === "BUY_DECISION" ? 15 : -99; break;
+    case "sabotage": {
+      const rent = computeRent(s, cmd.propertyIndex!).total;
+      later = (rent - Math.ceil(rent / 10) * 5) * landChance(s, cmd.propertyIndex!, s.properties[cmd.propertyIndex!]!.ownerId) * lead;
+      break;
+    }
+    case "greve": {
+      const owner = s.properties[cmd.propertyIndex!]!.ownerId!;
+      const ctrl = ownedCount(s, owner, districtOf(cmd.propertyIndex!)) >= 2;
+      later = ctrl && s.properties[cmd.propertyIndex!]!.level < 3 && s.players[owner]!.materials >= 1 ? 9 * lead : 0;
+      break;
+    }
+    case "blocage_bancaire": later = 4 * lead; break;
+    case "concurrence_agressive": {
+      const t = cmd.targetPlayerId!;
+      const owned = PROPERTY_INDICES.filter((i) => s.properties[i]!.ownerId === t);
+      const pRent = 1 - owned.reduce((m, i) => m * (1 - landChance(s, i, t) * 0.8), 1);
+      later = 10 * pRent * lead;
+      break;
+    }
+    case "crise_locale": {
+      const d = cmd.district!;
+      let delta = 0;
+      for (const i of PROPERTY_INDICES) {
+        const pr = after.properties[i]!;
+        if (districtOf(i) !== d || !pr.ownerId) continue;
+        const loss = computeRent(s, i).total - computeRent(after, i).total;
+        delta += (pr.ownerId === me ? -1 : 1) * loss * landChance(s, i, pr.ownerId);
+      }
+      later = delta;
+      break;
+    }
     case "prise_de_controle":
     case "opa_hostile": {
+      // l'adversaire perd le bien ; il récupère le produit d'une enchère (~60 % de la valeur) : perte nette estimée
       const pr = s.properties[cmd.propertyIndex!]!;
-      const d = districtOf(pr.index);
-      const breaks = ownedCount(s, pr.ownerId!, d) >= 2 ? 25 : 0;
-      v = (priceOf(pr.index) * 0.35 + pr.buildingCredits * 0.3 + breaks) * pf.attack * onLeader;
+      const breaks = ownedCount(s, pr.ownerId!, districtOf(pr.index)) >= 2 ? 25 : 0;
+      later = -immediate + (priceOf(pr.index) * 0.7 + pr.buildingCredits * 0.5) * 0.4 + breaks * 0.8;
+      later *= lead;
+      immediate = -10 * (def.cost.materials + def.cost.energy) * resourceWeight(s);
       break;
     }
-    case "assurance": v = 3 * pf.defense; break;
-    case "bouclier_financier": v = 6 * pf.defense; break;
+    case "assurance": {
+      const rent = computeRent(s, cmd.propertyIndex!).total;
+      later = attackThreat * 0.3 * rent * 0.5;
+      break;
+    }
+    case "bouclier_financier": later = attackThreat * 12; break;
     case "protection_juridique":
     case "assurance_immobiliere": {
       const pr = s.properties[cmd.propertyIndex!]!;
-      v = (ownedCount(s, me, districtOf(pr.index)) >= 2 ? 12 : 3) * pf.defense;
+      const valueAtRisk = priceOf(pr.index) * 0.7 * 0.4 + pr.buildingCredits * 0.5 + (ownedCount(s, me, districtOf(pr.index)) >= 2 ? 20 : 0);
+      later = attackThreat * 0.25 * valueAtRisk * (def.key === "protection_juridique" ? 1.2 : 1);
       break;
     }
-    case "contre_offensive": v = 10 * pf.defense; break;
-    case "reserve_urgence": v = (p.credits < 40 ? 12 : 1) * pf.defense; break;
-    case "negociateur":
-    case "offre_speciale": v = s.phase === "MANAGE" ? 4 * pf.trade : -Infinity; break;
-    case "courtier": v = 10; break;
-    case "partenariat": v = 10 * pf.trade; break;
-    case "fusion": {
-      const mine = districtOf(cmd.propertyIndex!);
-      const theirs = districtOf(cmd.otherPropertyIndex!);
-      v = mine !== theirs && ownedCount(s, me, theirs) === 1 ? 30 * pf.trade : -Infinity;
-      break;
-    }
+    case "contre_offensive": later = attackThreat * 14 + attackThreat * 5; break;
+    case "reserve_urgence": later = p.credits < 30 ? 12 : 0; break;
+    case "negociateur": later = s.phase === "MANAGE" && tradeOffer(s, me, pf) ? 10 : -99; break;
+    case "offre_speciale": later = s.phase === "MANAGE" && tradeOffer(s, me, pf) ? 8 : -99; break;
     case "influence_locale": {
       const d = cmd.district!;
-      v = s.phase === "MANAGE" && ownedCount(s, me, d) === 1 && p.credits > 60 && p.materials >= 2 ? 15 * pf.invest : -Infinity;
+      const enables = PROPERTY_INDICES.some((i) => districtOf(i) === d && after.properties[i]!.ownerId === me && canBuild(after, me, i) === null && canBuild(s, me, i) === "NO_MAJORITY");
+      later = s.phase === "MANAGE" && enables ? 14 + roundsLeft : -99;
       break;
     }
-    case "reforme_urbaine": v = ownedCount(s, me, cmd.district!) >= 2 ? 8 : -Infinity; break;
+    case "reforme_urbaine": later = ownedCount(s, me, cmd.district!) >= 2 ? 6 : -99; break;
   }
-  return v - cost;
+  const fam = { investment: pf.invest, attack: pf.attack, defense: pf.defense, commerce: pf.trade, politics: 1 }[def.family];
+  return immediate + later * fam;
+}
+
+function controlsLevel(s: GameState, me: PlayerId, i: number): boolean {
+  const pr = s.properties[i]!;
+  return pr.ownerId === me && !pr.mortgaged && pr.level < 3 && ownedCount(s, me, districtOf(i)) >= 2;
+}
+
+function resourceWeight(s: GameState): number {
+  return (s.config.resourceScore ?? RULES.scorePerResource) / 10;
 }
 
 function bestCardPlay(s: GameState, me: PlayerId, pf: Profile, rng: Rng): Command | null {
   if (s.turn.cardPlayed) return null;
   const plays = cardPlays(s);
   if (!plays.length) return null;
+  // une carte encore en main en fin de partie ne vaut rien : le seuil baisse au fil des manches
+  const threshold = Math.max(0, 4 - s.round / 3);
   let best: Command | null = null;
-  let bestV = 2;
+  let bestV = threshold;
   for (const c of plays) {
-    let v = staticCardValue(s, me, c, pf);
-    if (pf.name === "random") v += rng.int(10) - 5;
+    let v = cardEV(s, me, c, pf);
+    if (pf.name === "random") v += rng.int(8) - 4;
     if (v > bestV) {
       bestV = v;
       best = c;

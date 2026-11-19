@@ -10,9 +10,11 @@ describe("Variantes de règles (leviers d'équilibrage)", () => {
   it("par défaut = v1.1 (variante V9 validée)", () => {
     const s = mk({});
     expect(s.config).toEqual(DEFAULT_CONFIG);
-    expect(s.config).toEqual({ movementDie: [1, 2, 2, 3, 3, 4], startReward: 40, drawOnStart: true, turnIncome: 10, seatBonus: [0, 20, 40, 60] });
-    // siège 1 : 150 + 10 (revenu de son premier tour) ; sièges 2 et 3 : compensation
-    expect(s.turnOrder.map((id) => s.players[id]!.credits)).toEqual([160, 170, 190]);
+    expect(s.config).toEqual({ movementDie: [1, 2, 2, 3, 3, 4], startReward: 40, drawOnStart: true, turnIncome: 10, seatBonus: [0, 20, 40, 60], seatBonusByCount: { 3: [0, 40, 60], 4: [0, 30, 50, 70] } });
+    // 3 joueurs — siège 1 : 150 + 10 (revenu de son premier tour) ; sièges 2 et 3 : +40 / +60
+    expect(s.turnOrder.map((id) => s.players[id]!.credits)).toEqual([160, 190, 210]);
+    const s4 = createGame(["A", "B", "C", "D"].map((id) => ({ id, name: id })), ctx(seededRng(3))).state;
+    expect(s4.turnOrder.map((id) => s4.players[id]!.credits)).toEqual([160, 180, 200, 220]);
   });
   it("règles d'origine du dossier toujours disponibles", () => {
     expect(OFFICIAL_CONFIG.movementDie).toEqual([1, 1, 2, 2, 3, 3]);
