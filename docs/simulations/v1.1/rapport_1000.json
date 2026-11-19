@@ -1,0 +1,443 @@
+{
+ "generatedAt": "2026-11-19T13:41:13.661Z",
+ "rules": "1.1.0-provisional",
+ "games": 1000,
+ "baseSeed": 20261118,
+ "campaigns": {
+  "3p_mixte_equilibre": {
+   "games": 1000,
+   "scoreMean": 387.165,
+   "scoreMedian": 385,
+   "scoreSd": 66.42786896325964,
+   "winnerScoreMean": 450.742,
+   "propsMean": 4.316333333333334,
+   "noPropertyEnd": 0,
+   "buildingsMean": 3.719333333333333,
+   "level3Share": 0.37666666666666665,
+   "districtsMean": 1.211,
+   "bankruptcyRate": 0,
+   "debtEnd": 0,
+   "cardsDrawnMean": 2.1123333333333334,
+   "cardsPlayedMean": 0.8703333333333333,
+   "objectiveRate": 0.39266666666666666,
+   "startPassesPerPlayer": 0.9796666666666659,
+   "auctionsMean": 9.851,
+   "auctionsNoSale": 0.33059178599178696,
+   "tradesMean": 1.515,
+   "tradeOffersMean": 1.515,
+   "realtyAttacksMean": 0.305,
+   "minutesMedian": 12.833333333333334,
+   "minutesP90": 13.6,
+   "roundsNoPropMean": 2.0126666666666666,
+   "firstLastMedian": 1.3500417710944026,
+   "rejected": 0,
+   "commands": 142819,
+   "violations": [],
+   "seats": [
+    {
+     "seat": 0,
+     "rate": 0.408,
+     "n": 1000
+    },
+    {
+     "seat": 1,
+     "rate": 0.3,
+     "n": 1000
+    },
+    {
+     "seat": 2,
+     "rate": 0.292,
+     "n": 1000
+    }
+   ],
+   "profiles": [
+    {
+     "profile": "balanced",
+     "rate": 0.3333333333333333,
+     "n": 3000
+    }
+   ],
+   "cardTotals": {
+    "1": 67,
+    "2": 120,
+    "3": 0,
+    "4": 9,
+    "5": 137,
+    "6": 34,
+    "7": 25,
+    "8": 139,
+    "9": 144,
+    "10": 122,
+    "11": 0,
+    "12": 144,
+    "13": 0,
+    "14": 149,
+    "15": 0,
+    "16": 137,
+    "17": 147,
+    "18": 0,
+    "19": 0,
+    "20": 0,
+    "21": 0,
+    "22": 0,
+    "23": 96,
+    "24": 204,
+    "25": 0,
+    "26": 0,
+    "27": 196,
+    "28": 126,
+    "29": 119,
+    "30": 106,
+    "31": 43,
+    "32": 0,
+    "33": 7,
+    "34": 0,
+    "35": 182,
+    "36": 158
+   },
+   "alerts": [
+    "Durée médiane estimée hors [20 ; 40] min (12.8 min)",
+    "Avantage de siège 1 : 40.8 % (équitable 33.3 %)"
+   ],
+   "firstSeed": 20261118
+  },
+  "4p_mixte_equilibre": {
+   "games": 1000,
+   "scoreMean": 380.5375,
+   "scoreMedian": 377,
+   "scoreSd": 63.09725504132532,
+   "winnerScoreMean": 452.717,
+   "propsMean": 3.85175,
+   "noPropertyEnd": 0.00025,
+   "buildingsMean": 3.8475,
+   "level3Share": 0.48375,
+   "districtsMean": 1.13125,
+   "bankruptcyRate": 0,
+   "debtEnd": 0,
+   "cardsDrawnMean": 2.15,
+   "cardsPlayedMean": 0.8295,
+   "objectiveRate": 0.3805,
+   "startPassesPerPlayer": 0.97525,
+   "auctionsMean": 8.83,
+   "auctionsNoSale": 0.17691878268790073,
+   "tradesMean": 2.257,
+   "tradeOffersMean": 2.257,
+   "realtyAttacksMean": 0.401,
+   "minutesMedian": 16.983333333333334,
+   "minutesP90": 17.966666666666665,
+   "roundsNoPropMean": 2.42975,
+   "firstLastMedian": 1.4164085796745707,
+   "rejected": 0,
+   "commands": 187964,
+   "violations": [],
+   "seats": [
+    {
+     "seat": 0,
+     "rate": 0.281,
+     "n": 1000
+    },
+    {
+     "seat": 1,
+     "rate": 0.248,
+     "n": 1000
+    },
+    {
+     "seat": 2,
+     "rate": 0.241,
+     "n": 1000
+    },
+    {
+     "seat": 3,
+     "rate": 0.23,
+     "n": 1000
+    }
+   ],
+   "profiles": [
+    {
+     "profile": "balanced",
+     "rate": 0.25,
+     "n": 4000
+    }
+   ],
+   "cardTotals": {
+    "1": 86,
+    "2": 162,
+    "3": 0,
+    "4": 23,
+    "5": 158,
+    "6": 46,
+    "7": 50,
+    "8": 165,
+    "9": 168,
+    "10": 188,
+    "11": 0,
+    "12": 166,
+    "13": 0,
+    "14": 160,
+    "15": 0,
+    "16": 139,
+    "17": 201,
+    "18": 0,
+    "19": 0,
+    "20": 0,
+    "21": 0,
+    "22": 0,
+    "23": 123,
+    "24": 259,
+    "25": 0,
+    "26": 0,
+    "27": 275,
+    "28": 173,
+    "29": 146,
+    "30": 124,
+    "31": 46,
+    "32": 0,
+    "33": 12,
+    "34": 0,
+    "35": 247,
+    "36": 201
+   },
+   "alerts": [
+    "Durée médiane estimée hors [20 ; 40] min (17.0 min)"
+   ],
+   "firstSeed": 21261118
+  },
+  "profils_melanges": {
+   "games": 1000,
+   "scoreMean": 392.6511428571429,
+   "scoreMedian": 389,
+   "scoreSd": 67.92853607269623,
+   "winnerScoreMean": 465.85,
+   "propsMean": 4.144285714285714,
+   "noPropertyEnd": 0,
+   "buildingsMean": 3.612,
+   "level3Share": 0.4102857142857143,
+   "districtsMean": 1.1902857142857144,
+   "bankruptcyRate": 0,
+   "debtEnd": 0,
+   "cardsDrawnMean": 2.12,
+   "cardsPlayedMean": 0.876,
+   "objectiveRate": 0.3822857142857143,
+   "startPassesPerPlayer": 0.9733333333333329,
+   "auctionsMean": 9.204,
+   "auctionsNoSale": 0.20000084221334272,
+   "tradesMean": 1.672,
+   "tradeOffersMean": 1.672,
+   "realtyAttacksMean": 0.298,
+   "minutesMedian": 14.933333333333334,
+   "minutesP90": 17.516666666666666,
+   "roundsNoPropMean": 2.240285714285714,
+   "firstLastMedian": 1.4016710678329758,
+   "rejected": 0,
+   "commands": 165854,
+   "violations": [],
+   "seats": [
+    {
+     "seat": 0,
+     "rate": 0.322,
+     "n": 1000
+    },
+    {
+     "seat": 1,
+     "rate": 0.274,
+     "n": 1000
+    },
+    {
+     "seat": 2,
+     "rate": 0.258,
+     "n": 1000
+    },
+    {
+     "seat": 3,
+     "rate": 0.292,
+     "n": 500
+    }
+   ],
+   "profiles": [
+    {
+     "profile": "investor",
+     "rate": 0.2818590704647676,
+     "n": 667
+    },
+    {
+     "profile": "aggressive",
+     "rate": 0.34610303830911493,
+     "n": 757
+    },
+    {
+     "profile": "negotiator",
+     "rate": 0.24617524339360222,
+     "n": 719
+    },
+    {
+     "profile": "random",
+     "rate": 0.3073394495412844,
+     "n": 654
+    },
+    {
+     "profile": "balanced",
+     "rate": 0.24466571834992887,
+     "n": 703
+    }
+   ],
+   "cardTotals": {
+    "1": 97,
+    "2": 173,
+    "3": 0,
+    "4": 26,
+    "5": 179,
+    "6": 70,
+    "7": 40,
+    "8": 165,
+    "9": 131,
+    "10": 121,
+    "11": 83,
+    "12": 123,
+    "13": 93,
+    "14": 134,
+    "15": 105,
+    "16": 124,
+    "17": 144,
+    "18": 0,
+    "19": 0,
+    "20": 33,
+    "21": 28,
+    "22": 18,
+    "23": 76,
+    "24": 173,
+    "25": 15,
+    "26": 8,
+    "27": 183,
+    "28": 106,
+    "29": 88,
+    "30": 105,
+    "31": 65,
+    "32": 0,
+    "33": 12,
+    "34": 0,
+    "35": 194,
+    "36": 154
+   },
+   "alerts": [
+    "Durée médiane estimée hors [20 ; 40] min (14.9 min)"
+   ],
+   "firstSeed": 22261118
+  },
+  "extremes": {
+   "games": 1000,
+   "scoreMean": 393.50971428571427,
+   "scoreMedian": 388,
+   "scoreSd": 69.04398736564197,
+   "winnerScoreMean": 467.353,
+   "propsMean": 4.138571428571429,
+   "noPropertyEnd": 0.00028571428571428574,
+   "buildingsMean": 3.5282857142857145,
+   "level3Share": 0.41114285714285714,
+   "districtsMean": 1.18,
+   "bankruptcyRate": 0,
+   "debtEnd": 0,
+   "cardsDrawnMean": 2.1382857142857143,
+   "cardsPlayedMean": 0.9185714285714286,
+   "objectiveRate": 0.38342857142857145,
+   "startPassesPerPlayer": 0.974916666666666,
+   "auctionsMean": 9.049,
+   "auctionsNoSale": 0.1877122633214743,
+   "tradesMean": 1.616,
+   "tradeOffersMean": 1.616,
+   "realtyAttacksMean": 0.317,
+   "minutesMedian": 14.525,
+   "minutesP90": 17.45,
+   "roundsNoPropMean": 2.249142857142857,
+   "firstLastMedian": 1.3980562166469213,
+   "rejected": 0,
+   "commands": 166080,
+   "violations": [],
+   "seats": [
+    {
+     "seat": 0,
+     "rate": 0.359,
+     "n": 1000
+    },
+    {
+     "seat": 1,
+     "rate": 0.251,
+     "n": 1000
+    },
+    {
+     "seat": 2,
+     "rate": 0.252,
+     "n": 1000
+    },
+    {
+     "seat": 3,
+     "rate": 0.276,
+     "n": 500
+    }
+   ],
+   "profiles": [
+    {
+     "profile": "investor",
+     "rate": 0.25,
+     "n": 1000
+    },
+    {
+     "profile": "aggressive",
+     "rate": 0.3333333333333333,
+     "n": 750
+    },
+    {
+     "profile": "negotiator",
+     "rate": 0.3333333333333333,
+     "n": 750
+    },
+    {
+     "profile": "random",
+     "rate": 0.25,
+     "n": 1000
+    }
+   ],
+   "cardTotals": {
+    "1": 109,
+    "2": 204,
+    "3": 0,
+    "4": 30,
+    "5": 198,
+    "6": 68,
+    "7": 45,
+    "8": 143,
+    "9": 145,
+    "10": 108,
+    "11": 104,
+    "12": 92,
+    "13": 114,
+    "14": 165,
+    "15": 123,
+    "16": 82,
+    "17": 152,
+    "18": 0,
+    "19": 0,
+    "20": 36,
+    "21": 58,
+    "22": 22,
+    "23": 78,
+    "24": 164,
+    "25": 18,
+    "26": 13,
+    "27": 188,
+    "28": 109,
+    "29": 90,
+    "30": 65,
+    "31": 82,
+    "32": 0,
+    "33": 28,
+    "34": 0,
+    "35": 217,
+    "36": 165
+   },
+   "alerts": [
+    "Durée médiane estimée hors [20 ; 40] min (14.5 min)"
+   ],
+   "firstSeed": 23261118
+  }
+ }
+}

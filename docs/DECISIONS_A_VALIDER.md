@@ -8,7 +8,11 @@ Les points marqués 🔴 bloquent le gel des règles v1.0. 🟠 = peut attendre 
 
 ## A. Structure et rythme
 
-### 🔴 R03 — Durée effective de la partie (un seul tour de plateau)
+### ✅ R03 — Durée effective de la partie — **VALIDÉ le 19/11/2026 : variante V9** (règles v1.1)
+- Dé de mouvement 1-2-2-3-3-4, 1 carte Chance piochée en main à chaque passage de Départ, +10 D au début de chaque tour, compensation de départ +0/+20/+40/+60 D selon le siège. Règles d'origine conservées dans le code (`OFFICIAL_CONFIG`) pour comparaison.
+- Reste ouvert : avantage du 1er joueur à 3 joueurs (~41 %).
+
+#### Historique R03
 - **Constat :** dé 1-3 (moyenne 2) × 12 manches = ~24 cases = 1 tour. ~1 carte piochée par joueur et par partie ; Départ franchi par ~55 % des joueurs.
 - **Options :** (a) garder tel quel et laisser la simulation trancher ; (b) dé de mouvement 1,2,2,3,3,4 (moyenne 2,5 → ~1,25 tour) ; (c) piocher aussi une carte au passage de Départ ; (d) 1 carte gratuite en début de partie + Chance inchangée ; (e) combinaison b+d.
 - **Recommandation :** (a) d'abord — je simule la version officielle — puis je te présente (b), (c), (d), (e) chiffrés. Ne rien changer sans chiffres.

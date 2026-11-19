@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { applyCommand, createGame } from "../src/engine.ts";
+import { OFFICIAL_CONFIG, applyCommand, createGame } from "../src/engine.ts";
 import { checkInvariants } from "../src/invariants.ts";
 import { seededRng } from "../src/rng.ts";
 import type { Command, Ctx, GameState, Rng } from "../src/types.ts";
@@ -20,7 +20,8 @@ export function ctx(rng: Rng = seededRng(1), now = 0): Ctx {
 
 export function newGame(n = 3, seed = 42) {
   const ids = ["A", "B", "C", "D"].slice(0, n);
-  const { state } = createGame(ids.map((id) => ({ id, name: id })), ctx(seededRng(seed)));
+  // les tests unitaires de règles utilisent les règles d'origine (valeurs du dossier) ; la variante v1.1 a ses propres tests
+  const { state } = createGame(ids.map((id) => ({ id, name: id })), ctx(seededRng(seed)), OFFICIAL_CONFIG);
   const order = state.turnOrder;
   return { s: state, a: order[0]!, b: order[1]!, c: order[2]!, d: order[3] };
 }

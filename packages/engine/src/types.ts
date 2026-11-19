@@ -244,4 +244,6 @@ export interface RuleConfig {
   turnIncome: number;
   /** crédits de départ supplémentaires par siège (index = siège) */
   seatBonus: number[];
+  /** positions de départ réparties autour du plateau (siège k → case floor(k × 24 / n)) */
+  spreadStart?: boolean;
 }

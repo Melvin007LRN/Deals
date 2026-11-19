@@ -37,12 +37,26 @@ import type {
   TurnFlags,
 } from "./types.ts";
 
-export const DEFAULT_CONFIG: RuleConfig = {
+/** Règles d'origine du dossier V2.5 (référence de comparaison). */
+export const OFFICIAL_CONFIG: RuleConfig = {
   movementDie: [...MOVEMENT_DIE],
   startReward: RULES.startReward,
   drawOnStart: false,
   turnIncome: 0,
   seatBonus: [0, 0, 0, 0],
+};
+
+/**
+ * Règles par défaut v1.1 = variante V9, validée par le créateur le 19/11/2026
+ * (docs/simulations/variantes_10000.md) : dé 1-2-2-3-3-4, carte au passage de Départ,
+ * +10 D au début de chaque tour, compensation de siège +0/+20/+40/+60 D.
+ */
+export const DEFAULT_CONFIG: RuleConfig = {
+  movementDie: [1, 2, 2, 3, 3, 4],
+  startReward: RULES.startReward,
+  drawOnStart: true,
+  turnIncome: 10,
+  seatBonus: [0, 20, 40, 60],
 };
 
 export class RuleError extends Error {
@@ -443,7 +457,7 @@ export function createGame(players: NewPlayer[], ctx: Ctx, configOverride: Parti
       id,
       name: np.name,
       seat,
-      position: 0,
+      position: config.spreadStart ? Math.floor((seat * RULES.boardSize) / order.length) : 0,
       credits: RULES.startingCredits + (config.seatBonus[seat] ?? 0),
       materials: RULES.startingMaterials,
       energy: RULES.startingEnergy,

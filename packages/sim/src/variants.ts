@@ -4,7 +4,7 @@
  * Chaque variante : N parties, tables de profil Mixte, alternance 3 / 4 joueurs, mêmes seeds pour toutes les variantes.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
-import { RULES_VERSION, type RuleConfig } from "@deals/engine";
+import { OFFICIAL_CONFIG, RULES_VERSION, type RuleConfig } from "@deals/engine";
 import { runGame, type GameResult } from "./run.ts";
 
 const args = process.argv.slice(2);
@@ -16,7 +16,7 @@ const SEAT = [0, 10, 20, 30];
 const SEAT2 = [0, 20, 40, 60];
 
 const VARIANTS: { key: string; label: string; config: Partial<RuleConfig> }[] = [
-  { key: "V0", label: "Règles actuelles (référence)", config: {} },
+  { key: "V0", label: "Règles d'origine du dossier (référence)", config: {} },
   { key: "V1", label: "Dé de mouvement 1-2-2-3-3-4", config: { movementDie: D14 } },
   { key: "V2", label: "Carte piochée au passage de Départ", config: { drawOnStart: true } },
   { key: "V3", label: "+10 D au début de chaque tour", config: { turnIncome: 10 } },
@@ -70,7 +70,7 @@ for (const v of VARIANTS) {
   const rs: GameResult[] = [];
   for (let i = 0; i < N; i++) {
     const n = i % 2 === 0 ? 3 : 4;
-    rs.push(runGame(BASE + i, Array(n).fill("balanced"), { config: v.config }));
+    rs.push(runGame(BASE + i, Array(n).fill("balanced"), { config: { ...OFFICIAL_CONFIG, ...v.config } }));
   }
   rows.push({ v, m: measure(rs) });
   process.stderr.write(`${v.key} terminé (${((Date.now() - started) / 1000).toFixed(0)} s)\n`);
