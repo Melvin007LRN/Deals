@@ -113,3 +113,13 @@ Les points marqués 🔴 bloquent le gel des règles v1.0. 🟠 = peut attendre 
 | 🔵 D-T4 | Hébergement client | Vercel (comme tes autres sites) | Vercel |
 | 🔵 D-T5 | Dépôt | Créer `Melvin007LRN/deals` (privé) | Oui — tu crées le dépôt vide sur GitHub (mon jeton actuel ne peut pas le faire) et je m'y attache |
 | 🔵 D-T6 | Langue | FR seul / FR + EN | FR en v1, textes prêts pour traduction |
+
+---
+
+## Décisions prises les 19/11/2026 (règles 1.4.0-test)
+Le créateur a demandé le 19/11 à 20h28 de « tout faire sans son accord » jusqu'à une version de test. Décisions appliquées, toutes réversibles dans `DEFAULT_CONFIG` :
+- ✅ **V9** (dé 1-2-2-3-3-4, carte au passage de Départ, +10 D par tour) — validé par le créateur.
+- ✅ **Compensation de siège** : 3 joueurs +0/+40/+60 D ; 4 joueurs +0/+30/+50/+70 D — validé par le créateur.
+- ✅ **5 points par ressource** en fin de partie — validé par le créateur.
+- ✅ **Révision 2 des cartes** (8 cartes) — appliquée sans accord explicite, sur la base de `docs/simulations/revision_cartes_3000.md` :
+  Bon investissement (+2 Mat.), Inspection et Fraude (vol de la ressource, sinon 10 D), Blocage bancaire (1 Énergie), Crise locale (aucun loyer dans le quartier), Assurance (toutes tes propriétés, non consommée), Vote municipal (1 Mat., -20 D taxe ou loyer), Réforme urbaine (1 Mat.).

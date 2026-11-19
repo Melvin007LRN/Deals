@@ -102,15 +102,25 @@ export const CARD_KEYS = Object.fromEntries(CARDS.map((d) => [d.key, d.id])) as 
  * Révision 2 (proposition du 19/11/2026, à valider) : renforce 6 cartes jamais rentables en simulation.
  * Coûts et textes ; les effets correspondants sont dans engine.ts (s.config.cardRevision === 2).
  */
-export const CARD_REVISION_2: Record<string, { cost?: { materials: number; energy: number }; text: string }> = {
+export const CARD_REVISION_2: Record<string, { cost?: { materials: number; energy: number }; target?: TargetKind; text: string }> = {
   bon_investissement: { text: "Gagne 2 Matériaux (plafond applicable, excédent converti en 5 D)." },
-  vote_municipal: { cost: { materials: 1, energy: 0 }, text: "Réduit de 10 D la taxe de case ou le loyer que tu paies ce tour." },
+  vote_municipal: { cost: { materials: 1, energy: 0 }, text: "Réduit de 20 D la taxe de case ou le loyer que tu paies ce tour." },
+  inspection: { text: "Vole 1 Matériau à la cible ; si elle n'en a pas, lui prend jusqu'à 10 D." },
+  fraude_commerciale: { text: "Vole 1 Énergie à la cible ; si elle n'en a pas, lui prend jusqu'à 10 D." },
   blocage_bancaire: { cost: { materials: 0, energy: 1 }, text: "La cible ne peut pas acheter volontairement pendant son prochain tour, mais peut enchérir." },
-  crise_locale: { text: "Loyers d'un quartier réduits de 5 D (minimum 0) jusqu'au prochain tour du lanceur ; non cumulable." },
-  assurance: { text: "Protège une propriété contre Sabotage, Grève et Crise locale jusqu'au début du prochain tour du propriétaire (non consommée)." },
+  crise_locale: { text: "Aucun loyer n'est payé dans un quartier jusqu'au prochain tour du lanceur ; non cumulable." },
+  assurance: { target: "none", text: "Protège toutes tes propriétés contre Sabotage, Grève et Crise locale jusqu'au début de ton prochain tour (non consommée)." },
   reforme_urbaine: { cost: { materials: 1, energy: 0 }, text: "Double le bonus économique d'un quartier jusqu'au prochain tour du lanceur ; ne double pas les points." },
 };
 
 export function cardCost(def: CardDef, revision: 1 | 2 = 1): { materials: number; energy: number } {
   return revision === 2 ? CARD_REVISION_2[def.key]?.cost ?? def.cost : def.cost;
+}
+
+export function cardTarget(def: CardDef, revision: 1 | 2 = 1): TargetKind {
+  return revision === 2 ? CARD_REVISION_2[def.key]?.target ?? def.target : def.target;
+}
+
+export function cardText(def: CardDef, revision: 1 | 2 = 1): string {
+  return revision === 2 ? CARD_REVISION_2[def.key]?.text ?? def.text : def.text;
 }

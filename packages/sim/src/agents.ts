@@ -141,7 +141,21 @@ function cardEV(s: GameState, me: PlayerId, cmd: Extract<Command, { type: "PLAY_
       break;
     }
     case "reduction_fiscale": later = s.phase === "TAX_DUE" ? 15 : -99; break;
-    case "vote_municipal": later = s.phase === "TAX_DUE" ? 10 : -99; break;
+    case "vote_municipal": {
+      const cut = s.config.cardRevision === 2 ? 20 : 10;
+      if (s.phase === "TAX_DUE") later = Math.min(cut, 15);
+      else if (s.phase === "PRE_ROLL" && s.config.cardRevision === 2) {
+        // espérance de ce que je paierai en arrivant (loyer ou taxe), plafonnée à la réduction
+        const die = s.config.movementDie;
+        later = die.reduce((acc, m) => {
+          const i = (p.position + m) % 24;
+          const pr = s.properties[i];
+          const due = i === 20 ? 15 : pr && pr.ownerId && pr.ownerId !== me && !pr.mortgaged ? computeRent(s, i).total : 0;
+          return acc + Math.min(cut, due) / die.length;
+        }, 0);
+      } else later = -99;
+      break;
+    }
     case "nouvelle_opportunite": later = s.phase === "BUY_DECISION" ? 20 : -99; break;
     case "contrat_privilegie": later = s.phase === "BUY_DECISION" ? 15 : -99; break;
     case "sabotage": {
@@ -187,8 +201,10 @@ function cardEV(s: GameState, me: PlayerId, cmd: Extract<Command, { type: "PLAY_
       break;
     }
     case "assurance": {
-      const rent = computeRent(s, cmd.propertyIndex!).total;
-      later = attackThreat * 0.3 * rent * 0.5;
+      if (cmd.propertyIndex === undefined) {
+        const rents = myProps.reduce((a, i) => a + computeRent(s, i).total, 0);
+        later = attackThreat * 0.35 * rents * 0.5 + attackThreat * 4;
+      } else later = attackThreat * 0.3 * computeRent(s, cmd.propertyIndex).total * 0.5;
       break;
     }
     case "bouclier_financier": later = attackThreat * 12; break;

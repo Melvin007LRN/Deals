@@ -24,15 +24,15 @@ describe("Révision 2 des cartes (proposition)", () => {
     const t = run(s, { type: "PLAY_CARD", playerId: a, instanceId: giveCard(s, a, "bon_investissement") });
     expect([t.players[a]!.materials, t.players[a]!.energy]).toEqual([8, 4]);
   });
-  it("Vote municipal : coûte 1 Matériau et réduit aussi le loyer payé ce tour", () => {
+  it("Vote municipal : coûte 1 Matériau et réduit de 20 D la taxe ou le loyer payé ce tour", () => {
     const { s, a, b } = game({ cardRevision: 2 });
     own(s, b, 3); setLevel(s, 3, 1); // loyer 15
     rich(s, a);
     let t = run(s, { type: "PLAY_CARD", playerId: a, instanceId: giveCard(s, a, "vote_municipal") });
     expect([t.players[a]!.materials, t.players[a]!.energy]).toEqual([5, 5]);
     t = roll(t, a, 3, "materials");
-    expect(t.players[a]!.credits).toBe(145);
-    expect(t.players[b]!.credits).toBe(155);
+    expect(t.players[a]!.credits).toBe(150);
+    expect(t.players[b]!.credits).toBe(150);
   });
   it("Blocage bancaire coûte 1 Énergie ; Réforme urbaine coûte 1 Matériau", () => {
     const { s, a, b } = game({ cardRevision: 2 });
@@ -45,11 +45,11 @@ describe("Révision 2 des cartes (proposition)", () => {
     own(g2.s, g2.a, 13, 14);
     expect(run(g2.s, { type: "PLAY_CARD", playerId: g2.a, instanceId: giveCard(g2.s, g2.a, "reforme_urbaine"), district: "touristic" }).players[g2.a]!.materials).toBe(0);
   });
-  it("Crise locale : -5 D par loyer, visible même sans bâtiment", () => {
+  it("Crise locale : aucun loyer dans le quartier", () => {
     const { s, b } = game({ cardRevision: 2 });
     own(s, b, 13);
     s.effects.push({ id: 1, kind: "districtCrisis", sourceId: "x", district: "touristic", expiry: { kind: "never" } });
-    expect(computeRent(s, 13).total).toBe(5);
+    expect(computeRent(s, 13).total).toBe(0);
     const r1 = game({ cardRevision: 1 });
     own(r1.s, r1.b, 13);
     r1.s.effects.push({ id: 1, kind: "districtCrisis", sourceId: "x", district: "touristic", expiry: { kind: "never" } });
@@ -64,5 +64,27 @@ describe("Révision 2 des cartes (proposition)", () => {
     expect(r.events.some((e) => e.type === "ATTACK_BLOCKED")).toBe(true);
     expect(r.state.effects.map((e) => e.kind)).toEqual(["insurance"]);
     void rejects;
+  });
+  it("Inspection / Fraude : volent la ressource, sinon 10 D", () => {
+    for (const [key, kind] of [["inspection", "materials"], ["fraude_commerciale", "energy"]] as const) {
+      const { s, a, b } = game({ cardRevision: 2 });
+      toManage(s); rich(s, a);
+      const inst = giveCard(s, a, key);
+      const before = s.players[a]![kind];
+      let t = run(structuredClone(s), { type: "PLAY_CARD", playerId: a, instanceId: inst, targetPlayerId: b });
+      expect(t.players[b]![kind]).toBe(s.players[b]![kind] - 1);
+      expect(t.players[a]![kind]).toBe(before - (kind === "energy" ? 1 : 0) + 1);
+      s.players[b]![kind] = 0;
+      t = run(s, { type: "PLAY_CARD", playerId: a, instanceId: inst, targetPlayerId: b });
+      expect([t.players[b]!.credits, t.players[a]!.credits]).toEqual([140, 160]);
+    }
+  });
+  it("Assurance : protège toutes les propriétés du joueur, sans cible", () => {
+    const { s, a, b } = game({ cardRevision: 2 });
+    toManage(s); rich(s, a);
+    own(s, a, 13, 3);
+    s.effects.push({ id: 1, kind: "districtCrisis", sourceId: b, district: "touristic", expiry: { kind: "never" } });
+    const t = run(s, { type: "PLAY_CARD", playerId: a, instanceId: giveCard(s, a, "assurance") });
+    expect(computeRent(t, 13).total).toBe(10);
   });
 });

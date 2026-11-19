@@ -4,7 +4,7 @@
  * Aucune dépendance DOM/réseau. Toute commande refusée laisse l'état intact (travail sur une copie).
  */
 import { BOARD, DISTRICTS, PROPERTY_INDICES, districtOf, districtProperties, priceOf, space, type DistrictId } from "./content/board.ts";
-import { CARDS, card, cardCost, type CardDef } from "./content/cards.ts";
+import { CARDS, card, cardCost, cardTarget, type CardDef } from "./content/cards.ts";
 import { OBJECTIVES, objective } from "./content/objectives.ts";
 import {
   BUILDING_COSTS,
@@ -46,6 +46,7 @@ export const OFFICIAL_CONFIG: RuleConfig = {
   seatBonus: [0, 0, 0, 0],
   seatBonusByCount: {},
   resourceScore: 10,
+  cardRevision: 1,
 };
 
 /**
@@ -63,6 +64,8 @@ export const DEFAULT_CONFIG: RuleConfig = {
   seatBonusByCount: { 3: [0, 40, 60], 4: [0, 30, 50, 70] },
   // validé le 19/11/2026 (docs/simulations/ressources_3000.md)
   resourceScore: 5,
+  // révision 2 des cartes (docs/simulations/revision_cartes_3000.md)
+  cardRevision: 2,
 };
 
 export class RuleError extends Error {
@@ -374,6 +377,12 @@ export interface RentBreakdown {
 }
 
 /** Calcul exact en entiers : multiplicateur bâtiment → bonus quartier → crise/sabotage → arrondi au 5 sup. → -10 / +15. */
+/** Assurance : sur une propriété (révision 1) ou sur toutes les propriétés du joueur (révision 2). */
+export function isInsured(s: GameState, index: number): boolean {
+  const owner = s.properties[index]?.ownerId;
+  return s.effects.some((e) => e.kind === "insurance" && (e.propertyIndex === index || (e.propertyIndex === undefined && owner != null && e.targetPlayerId === owner)));
+}
+
 export function computeRent(s: GameState, index: number): RentBreakdown {
   const pr = prop(s, index);
   const price = priceOf(index);
@@ -381,14 +390,14 @@ export function computeRent(s: GameState, index: number): RentBreakdown {
   const base = baseRent(price);
   const owner = pr.ownerId;
   const districtBonus = owner !== null && controls(s, owner, d);
-  const insured = s.effects.some((e) => e.kind === "insurance" && e.propertyIndex === index);
+  const insured = isInsured(s, index);
   const crisis = !insured && s.effects.some((e) => e.kind === "districtCrisis" && e.district === d);
   const sabotage = s.effects.some((e) => e.kind === "sabotage" && e.propertyIndex === index);
-  const crisisFlat = crisis && s.config.cardRevision === 2;
-  const num = base * RENT_MULT_HALVES[pr.level] * (districtBonus ? 11 : 10) * (crisis && !crisisFlat ? 3 : 4) * (sabotage ? 1 : 2);
+  const crisisZero = crisis && s.config.cardRevision === 2;
+  const num = base * RENT_MULT_HALVES[pr.level] * (districtBonus ? 11 : 10) * (crisis && !crisisZero ? 3 : 4) * (sabotage ? 1 : 2);
   const den = 2 * 10 * 4 * 2;
   let total = 5 * Math.ceil(num / (den * 5));
-  if (crisisFlat) total = Math.max(0, total - 5);
+  if (crisisZero) total = 0;
   const receivedMinus = owner !== null && s.effects.some((e) => e.kind === "rentReceivedMinus" && e.targetPlayerId === owner) ? 10 : 0;
   total = Math.max(0, total - receivedMinus);
   const rentBonus = s.effects.some((e) => e.kind === "rentBonus" && e.propertyIndex === index) ? 15 : 0;
@@ -892,7 +901,7 @@ export function canPlayCard(s: GameState, cmd: PlayCmd): string | null {
   if (def.attack && inRecovery(p)) return "IN_RECOVERY";
   if (def.attack === "realty" && s.phase !== "PRE_ROLL" && s.phase !== "MANAGE") return "WRONG_PHASE";
   const isOpp = (id?: PlayerId) => id !== undefined && id !== p.id && s.players[id] !== undefined;
-  switch (def.target) {
+  switch (cardTarget(def, s.config.cardRevision ?? 1)) {
     case "opponent":
       if (!isOpp(cmd.targetPlayerId)) return "INVALID_TARGET";
       break;
@@ -968,7 +977,7 @@ function attackBlocked(g: G, attacker: PlayerState, def: CardDef, targetId: Play
       if (ri) return block("realtyInsurance", ri.id);
     }
     if (def.key === "sabotage" || (def.key === "greve" && s.config.cardRevision === 2)) {
-      const ins = findEffect(s, (e) => e.kind === "insurance" && e.propertyIndex === propertyIndex);
+      const ins = findEffect(s, (e) => e.kind === "insurance" && (e.propertyIndex === propertyIndex || (s.config.cardRevision === 2 && e.propertyIndex === undefined && e.targetPlayerId === targetId)));
       if (ins) return block("insurance", s.config.cardRevision === 2 ? undefined : ins.id);
     }
   }
@@ -1062,8 +1071,8 @@ function playCard(g: G, cmd: PlayCmd): void {
       s.turn.taxCancel = true;
       break;
     case "vote_municipal":
-      s.turn.taxReduction = 10;
-      if (s.config.cardRevision === 2) s.turn.rentReduction = 10;
+      s.turn.taxReduction = s.config.cardRevision === 2 ? 20 : 10;
+      if (s.config.cardRevision === 2) s.turn.rentReduction = 20;
       break;
     case "nouvelle_opportunite":
       s.turn.buyDiscount = 20;
@@ -1088,7 +1097,13 @@ function playCard(g: G, cmd: PlayCmd): void {
     case "fraude_commerciale": {
       const t = player(s, attackTarget!);
       const kind = def.key === "inspection" ? "materials" : "energy";
-      if (t[kind] > 0) {
+      if (s.config.cardRevision === 2) {
+        if (t[kind] > 0) {
+          t[kind] -= 1;
+          emit(g, "RESOURCE_LOST", { kind, amount: 1, reason: def.key }, t.id);
+          gainResource(g, p, kind, 1, def.key);
+        } else cardLoss(g, t, 10, p.id, def.key, false, true);
+      } else if (t[kind] > 0) {
         t[kind] -= 1;
         emit(g, "RESOURCE_LOST", { kind, amount: 1, reason: def.key }, t.id);
       } else cardLoss(g, t, 5, null, def.key, false, true);
@@ -1119,6 +1134,10 @@ function playCard(g: G, cmd: PlayCmd): void {
       addEffect(g, { kind: "districtCrisis", sourceId: p.id, district: cmd.district!, expiry: { kind: "turnStart", playerId: p.id, turn: nextOwnTurn } });
       break;
     case "assurance":
+      if (s.config.cardRevision === 2) {
+        replaceEffect(g, "insurance", (e) => e.targetPlayerId === p.id && e.propertyIndex === undefined, { kind: "insurance", sourceId: p.id, targetPlayerId: p.id, expiry: { kind: "turnStart", playerId: p.id, turn: nextOwnTurn } });
+        break;
+      }
       replaceEffect(g, "insurance", (e) => e.propertyIndex === cmd.propertyIndex, { kind: "insurance", sourceId: p.id, propertyIndex: cmd.propertyIndex!, expiry: { kind: "turnStart", playerId: p.id, turn: nextOwnTurn } });
       break;
     case "bouclier_financier":

@@ -1,5 +1,5 @@
 import { DISTRICTS, PROPERTY_INDICES, priceOf } from "./content/board.ts";
-import { card } from "./content/cards.ts";
+import { card, cardTarget } from "./content/cards.ts";
 import { RULES } from "./content/rules.ts";
 import { activePlayerId, canBuild, canBuy, canPlayCard, minBid, resourceChoices } from "./engine.ts";
 import type { Bundle, Command, GameState, PlayerId } from "./types.ts";
@@ -16,7 +16,7 @@ export function cardPlays(s: GameState): Extract<Command, { type: "PLAY_CARD" }>
     const def = card(s.cardInstances[inst]!);
     const base = { type: "PLAY_CARD" as const, playerId: a, instanceId: inst };
     const cands: Extract<Command, { type: "PLAY_CARD" }>[] = [];
-    switch (def.target) {
+    switch (cardTarget(def, s.config.cardRevision ?? 1)) {
       case "none": cands.push(base); break;
       case "opponent": for (const o of opponents) cands.push({ ...base, targetPlayerId: o }); break;
       case "ownProperty":
