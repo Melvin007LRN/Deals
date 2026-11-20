@@ -76,6 +76,7 @@ export class OnlineGame implements GameController {
   private unsub: () => void;
   private ticker: ReturnType<typeof setInterval>;
   private ticking = false;
+  private lastUpdate = Date.now();
 
   constructor(private session: Session, initial: { view: PlayerView; seats: SeatInfo[]; version: number; serverNow: number }) {
     this.me = session.playerId;
@@ -98,7 +99,9 @@ export class OnlineGame implements GameController {
 
   private receive(view: PlayerView, events: GameEvent[], seats: SeatInfo[] | undefined, version: number, serverNow?: number) {
     if (version < this.version) return; // message en retard
-    if (version === this.version && events.length === 0 && view === this._view) return;
+    this.lastUpdate = Date.now();
+    if (version === this.version && events.length === 0) return;
+    this.lastUpdate = Date.now();
     this.version = version;
     this._view = view;
     if (seats) this._seats = seats;
@@ -108,6 +111,11 @@ export class OnlineGame implements GameController {
 
   private async tick() {
     if (this.ticking || this._view.phase === "FINISHED") return;
+    // filet de sécurité si le temps réel est coupé (réseau mobile, pare-feu) : resynchronisation par requête
+    if (Date.now() - this.lastUpdate > 5000) {
+      this.lastUpdate = Date.now();
+      void this.resync();
+    }
     this.ticking = true;
     try {
       const r = await api<{ serverNow?: number }>({ action: "tick", code: this.session.code, token: this.session.token });
