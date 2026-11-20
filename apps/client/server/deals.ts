@@ -315,8 +315,56 @@ async function handle(body: Record<string, any>) {
   throw new HttpError(400, "Action inconnue");
 }
 
+/** Autotest de production (GET ?selftest=<clé>) : scénario réel contre la vraie base et le vrai temps réel. */
+async function selftest(): Promise<Record<string, unknown>> {
+  const checks: Record<string, unknown> = {};
+  const t0 = Date.now();
+  const A = await handle({ action: "create", name: "Autotest A", maxPlayers: 3, fillBots: true });
+  checks.create = /^[A-Z0-9]{5}$/.test(A.code);
+  const B = await handle({ action: "join", code: A.code, name: "Autotest B" });
+  checks.join = typeof B.token === "string";
+  try {
+    await handle({ action: "start", code: A.code, token: B.token });
+    checks.nonHostCannotStart = false;
+  } catch (e) {
+    checks.nonHostCannotStart = e instanceof HttpError && e.status === 403;
+  }
+  checks.start = (await handle({ action: "start", code: A.code, token: A.token })).ok === true;
+  const sa = await handle({ action: "state", code: A.code, token: A.token });
+  const sbv = await handle({ action: "state", code: A.code, token: B.token });
+  checks.seats = sa.seats.length === 3 && sa.seats.filter((x: any) => x.isBot).length === 1;
+  const others = (v: any, me: string) => Object.entries(v.players).filter(([id]) => id !== me) as [string, any][];
+  checks.noLeak = others(sa.view, A.playerId).every(([, p]) => p.hand.length === 0 && p.objectiveId === 0) && !("deck" in sa.view) && others(sbv.view, B.playerId).every(([, p]) => p.objectiveId === 0);
+  const active = sa.view.turnOrder[sa.view.activeIndex];
+  const tokenOf = active === A.playerId ? A.token : active === B.playerId ? B.token : null;
+  if (tokenOf) {
+    const r = await handle({ action: "command", code: A.code, token: tokenOf, cmd: { type: "ROLL_DICE" }, cmdId: "selftest-1" });
+    const d = await handle({ action: "command", code: A.code, token: tokenOf, cmd: { type: "ROLL_DICE" }, cmdId: "selftest-1" });
+    checks.command = r.ok === true;
+    checks.idempotent = d.duplicate === true;
+  } else {
+    checks.botTick = (await handle({ action: "tick", code: A.code, token: A.token })).ok === true;
+  }
+  const after = await handle({ action: "state", code: A.code, token: A.token });
+  checks.versionAdvanced = after.version >= 1 || !tokenOf;
+  const bc = await fetch(`${SUPA}/realtime/v1/api/broadcast`, { method: "POST", headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ topic: "deals-selftest", event: "update", payload: {}, private: false }] }) });
+  checks.realtime = bc.status;
+  checks.ms = Date.now() - t0;
+  checks.room = A.code;
+  return checks;
+}
+
 export async function serve(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method === "GET") {
+    const key = new URL(req.url).searchParams.get("selftest");
+    if (key !== "088e386f0d42") return new Response("", { status: 405 });
+    try {
+      return new Response(JSON.stringify(await selftest()), { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+    } catch (e) {
+      return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+  }
   try {
     if (req.method !== "POST") throw new HttpError(405, "POST attendu");
     const raw = await req.text();
