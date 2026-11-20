@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:api": "node server/build.mjs",
+    "test:online": "node server/integration.test.mjs"
   },
   "dependencies": {
     "@deals/engine": "*",
